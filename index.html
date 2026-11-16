@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>손으로 말해요 · 한국 수어 배우기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EAF1F6; --ink:#14213D; --muted:#5B6B82; --card:#FFFFFF;
+    --accent:#0F8B8D; --ok:#2E9E5B; --warn:#E4572E; --line:#CBD8E3;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0E1626; --ink:#EAF1F6; --muted:#9FB0C5; --card:#172338; --accent:#3CC4C6; --ok:#4CCB84; --warn:#FF8A63; --line:#2A3A55; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',sans-serif;line-height:1.6}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px;min-height:100vh}
+  .screen{display:none}
+  .screen.on{display:block}
+  h1{font-size:clamp(34px,7vw,60px);font-weight:900;margin:0 0 6px;letter-spacing:-.03em}
+  h2{font-size:clamp(24px,4vw,32px);font-weight:900;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 24px}
+
+  /* 홈 */
+  #home{text-align:center;padding-top:12vh}
+  #home .hand{font-size:72px;line-height:1;margin-bottom:12px}
+  .big{font-size:20px;padding:16px 44px;border-radius:16px}
+
+  /* 단어 선택 */
+  .words{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:20px}
+  .word{position:relative;text-align:left;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:18px;padding:22px}
+  .word:hover{border-color:var(--accent)}
+  .word .w{font-size:28px;font-weight:900;display:block}
+  .word .d{font-size:14px;color:var(--muted);font-weight:400;display:block;margin-top:6px}
+  .word .check{position:absolute;top:14px;right:16px;color:var(--ok);font-weight:900}
+
+  /* 연습 */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px}
+  .target{font-size:clamp(40px,8vw,64px);font-weight:900;margin:2px 0;letter-spacing:-.03em}
+  .hint{color:var(--muted)}
+  .cam{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;color:#fff;text-align:center;padding:12px}
+  .cam canvas{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+  .cam.ok{outline:6px solid var(--ok)}
+  .badge{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.65);color:#fff;border-radius:999px;padding:6px 14px;font-weight:700}
+  button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:12px 20px;cursor:pointer;background:var(--accent);color:#fff}
+  button.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+  button:focus-visible{outline:3px solid var(--warn);outline-offset:2px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .bar{margin:8px 0}
+  .bar .lab{display:flex;justify-content:space-between;font-size:14px}
+  .bar .track{height:10px;background:var(--line);border-radius:6px;overflow:hidden}
+  .bar .fill{height:100%;width:0;background:var(--accent);transition:width .15s}
+  .bar.top .fill{background:var(--ok)}
+  .msg{font-weight:700;min-height:1.8em;margin-top:10px}
+  .err{color:var(--warn);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 1. 홈 -->
+  <section class="screen on" id="home">
+    <div class="hand" aria-hidden="true">🤟</div>
+    <h1>수어 배우기</h1>
+    <p class="sub">카메라로 내 수어를 바로 확인하며 연습해요.</p>
+    <button class="big" id="goStart">시작</button>
+  </section>
+
+  <!-- 2. 단어 선택 -->
+  <section class="screen" id="select">
+    <button class="ghost" id="backHome">← 처음으로</button>
+    <h2 style="margin-top:18px">배울 단어를 골라요</h2>
+    <p class="sub">단어를 누르면 카메라가 켜져요.</p>
+    <div class="words" id="words"></div>
+  </section>
+
+  <!-- 3. 연습 -->
+  <section class="screen" id="practice">
+    <button class="ghost" id="backSelect">← 단어 고르기</button>
+    <div class="grid">
+      <div class="card" aria-live="polite">
+        <div class="hint">지금 연습할 단어</div>
+        <div class="target" id="target">—</div>
+        <p class="hint" id="hint"></p>
+        <div id="bars"></div>
+        <div class="msg" id="msg"></div>
+        <div class="row"><button id="nextBtn" class="ghost" hidden>다음 단어</button></div>
+      </div>
+      <div class="card"><div class="cam" id="cam"></div></div>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+<script>
+/* ============ 여기만 수정하면 돼요 ============ */
+const MODEL_URL = "https://teachablemachine.withgoogle.com/models/SppWswN4X/";
+
+// 키 = 티처블 머신의 "클래스 이름"과 똑같이! / hint = 동작 설명(직접 고쳐 주세요)
+const SIGNS = {
+  "안녕하세요": { hint: "두 주먹을 쥐어 가슴 앞에 두고, 아래로 내리며 인사해요." },
+  "감사합니다": { hint: "한 손을 펴서 반대 손등을 두드리듯 아래로 내려요." },
+  // "미안합니다": { hint: "..." },
+};
+const BACKGROUND_CLASS = "배경";  // 손을 안 든 상태 클래스 이름 (없으면 무시)
+const PASS = 0.90;                // 이 확률 이상을
+const HOLD_MS = 1200;             // 이 시간 동안 유지하면 성공
+/* =============================================== */
+
+const $ = id => document.getElementById(id);
+const names = Object.keys(SIGNS);
+let model, webcam, labels = [], current = null, holdStart = null, done = false;
+let running = false, passed = {};
+
+function show(id){
+  document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
+  window.scrollTo(0,0);
+}
+
+/* ---- 단어 선택 화면 (모델과 상관없이 항상 보임) ---- */
+function renderWords(){
+  $("words").innerHTML = "";
+  names.forEach(n => {
+    const b = document.createElement("button");
+    b.className = "word"; b.type = "button";
+    b.innerHTML = `<span class="w">${n}</span><span class="d">${SIGNS[n].hint}</span>` +
+                  (passed[n] ? '<span class="check">✓ 완료</span>' : "");
+    b.onclick = () => openPractice(n);
+    $("words").appendChild(b);
+  });
+}
+
+$("goStart").onclick = () => { renderWords(); show("select"); };
+$("backHome").onclick = () => show("home");
+$("backSelect").onclick = () => { stopCam(); renderWords(); show("select"); };
+$("nextBtn").onclick = () => pick(names[(names.indexOf(current)+1) % names.length]);
+
+/* ---- 연습 화면 ---- */
+async function openPractice(name){
+  show("practice");
+  pick(name);
+  $("cam").textContent = "카메라 준비 중…";
+  $("msg").textContent = "";
+  try{
+    if(!model){
+      model = await tmImage.load(MODEL_URL + "model.json", MODEL_URL + "metadata.json");
+      labels = model.getClassLabels();
+      const missing = names.filter(n => !labels.includes(n));
+      if(missing.length) console.warn("모델에 없는 클래스 이름:", missing, "모델의 클래스:", labels);
+      buildBars();
+    }
+    webcam = new tmImage.Webcam(480, 480, true);
+    await webcam.setup(); await webcam.play();
+    $("cam").innerHTML = ""; $("cam").appendChild(webcam.canvas);
+    const bd = document.createElement("div"); bd.className = "badge"; bd.id = "badge"; $("cam").appendChild(bd);
+    $("nextBtn").hidden = false;
+    if(!labels.includes(current)){
+      $("msg").innerHTML = `<span class="err">모델에 '${current}' 클래스가 없어요. 코드의 SIGNS 이름을 티처블 머신 클래스 이름과 맞춰 주세요.</span>`;
+    }
+    running = true; requestAnimationFrame(loop);
+  }catch(e){
+    console.error(e);
+    $("cam").textContent = "카메라를 켜지 못했어요. 카메라 권한과 모델 주소를 확인해 주세요.";
+  }
+}
+
+function stopCam(){
+  running = false;
+  try{ webcam && webcam.stop(); }catch(e){}
+  $("cam").innerHTML = "";
+}
+
+function pick(n){
+  current = n; holdStart = null; done = false;
+  $("target").textContent = n;
+  $("hint").textContent = SIGNS[n]?.hint || "";
+  $("cam").classList.remove("ok");
+  $("msg").textContent = "";
+}
+
+function buildBars(){
+  $("bars").innerHTML = "";
+  labels.forEach((l,i) => {
+    $("bars").insertAdjacentHTML("beforeend",
+      `<div class="bar" id="bar${i}"><div class="lab"><span>${l}</span><span class="pct">0%</span></div><div class="track"><div class="fill"></div></div></div>`);
+  });
+}
+
+async function loop(){
+  if(!running) return;
+  webcam.update();
+  const pred = await model.predict(webcam.canvas);
+  if(!running) return;
+
+  let best = {className:"", probability:0};
+  pred.forEach((p,i) => {
+    const bar = $("bar"+i); if(!bar) return;
+    const pct = Math.round(p.probability*100);
+    bar.querySelector(".fill").style.width = pct + "%";
+    bar.querySelector(".pct").textContent = pct + "%";
+    if(p.probability > best.probability) best = p;
+  });
+  document.querySelectorAll(".bar").forEach(b => b.classList.remove("top"));
+  const bi = labels.indexOf(best.className); if(bi>=0) $("bar"+bi).classList.add("top");
+  const bd = $("badge"); if(bd) bd.textContent = best.probability > .6 ? best.className : "…";
+
+  if(!done && labels.includes(current)){
+    if(best.className === current && best.probability >= PASS){
+      holdStart = holdStart ?? performance.now();
+      if(performance.now() - holdStart >= HOLD_MS){
+        done = true; passed[current] = true;
+        $("cam").classList.add("ok");
+        $("msg").textContent = `🎉 잘했어요! '${current}' 완료`;
+      } else $("msg").textContent = "좋아요, 그대로 유지하세요!";
+    } else {
+      holdStart = null;
+      $("msg").textContent = (best.probability > .6 && best.className !== current && best.className !== BACKGROUND_CLASS)
+        ? `지금은 '${best.className}'처럼 보여요` : "";
+    }
+  }
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
